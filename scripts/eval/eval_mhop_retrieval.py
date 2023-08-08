@@ -120,7 +120,7 @@ if __name__ == '__main__':
         index.add(xb)
         if args.gpu:
             res = faiss.StandardGpuResources()
-            index = faiss.index_cpu_to_gpu(res, 6, index)
+            index = faiss.index_cpu_to_gpu(res, torch.cuda.current_device(), index)
 
     if args.save_index:
         faiss.write_index(index, "data/hotpot_index/wiki_index_hnsw_roberta")
