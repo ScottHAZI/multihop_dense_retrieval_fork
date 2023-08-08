@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # All rights reserved.
 #
-# This source code is licensed under the license found in the 
+# This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 
 """
@@ -81,7 +81,7 @@ class MomentumRetriever(nn.Module):
 
         # queue of context token ids
         self.k = args.k # queue size
-        self.register_buffer("queue", torch.zeros(self.k, args.max_c_len*3, dtype=torch.long)) # 
+        self.register_buffer("queue", torch.zeros(self.k, args.max_c_len*3, dtype=torch.long)) #
         self.register_buffer("queue_ptr", torch.zeros(1, dtype=torch.long))
 
     def forward(self, batch):
@@ -108,7 +108,7 @@ class MomentumRetriever(nn.Module):
                 queue_c_cls = self.encoder(input_ids[batch_start:batch_start+100], input_masks[batch_start:batch_start+100], type_ids   [batch_start:batch_start+100])[0][:, 0, :]
                 queue_c_clss.append(queue_c_cls)
         self.encoder.train()
-        
+
         return torch.cat(queue_c_clss, dim=0)
 
     @torch.no_grad()

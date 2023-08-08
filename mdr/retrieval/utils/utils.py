@@ -1,24 +1,24 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # All rights reserved.
 #
-# This source code is licensed under the license found in the 
+# This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 import torch
 import sqlite3
 import unicodedata
 
-def load_saved(model, path, exact=True):
+def load_saved(model, path, exact=True, strict=True):
     try:
         state_dict = torch.load(path)
     except:
         state_dict = torch.load(path, map_location=torch.device('cpu'))
-    
+
     def filter(x): return x[7:] if x.startswith('module.') else x
     if exact:
         state_dict = {filter(k): v for (k, v) in state_dict.items()}
     else:
         state_dict = {filter(k): v for (k, v) in state_dict.items() if filter(k) in model.state_dict()}
-    model.load_state_dict(state_dict)
+    model.load_state_dict(state_dict, strict=strict)
     return model
 
 def move_to_cuda(sample):

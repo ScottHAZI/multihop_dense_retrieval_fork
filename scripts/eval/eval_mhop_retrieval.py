@@ -1,7 +1,7 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # All rights reserved.
 #
-# This source code is licensed under the license found in the 
+# This source code is licensed under the license found in the
 # LICENSE file in the root directory of this source tree.
 """
 Evaluating trained retrieval model.
@@ -68,7 +68,7 @@ if __name__ == '__main__':
     parser.add_argument("--stop-drop", default=0, type=float)
     parser.add_argument('--hnsw', action="store_true")
     args = parser.parse_args()
-    
+
     logger.info("Loading data...")
     ds_items = [json.loads(_) for _ in open(args.raw_data).readlines()]
 
@@ -83,10 +83,8 @@ if __name__ == '__main__':
     model = load_saved(model, args.model_path, exact=False)
     simple_tokenizer = SimpleTokenizer()
 
-    cuda = torch.device('cuda')
-    model.to(cuda)
-    from apex import amp
-    model = amp.initialize(model, opt_level='O1')
+    device = torch.device('cuda' if torch.cuda.is_available() and args.gpu else 'cpu')
+    model.to(device)
     model.eval()
 
     logger.info("Building index...")
@@ -126,21 +124,21 @@ if __name__ == '__main__':
 
     if args.save_index:
         faiss.write_index(index, "data/hotpot_index/wiki_index_hnsw_roberta")
-    
+
     logger.info(f"Loading corpus...")
     id2doc = json.load(open(args.corpus_dict))
     if isinstance(id2doc["0"], list):
         id2doc = {k: {"title":v[0], "text": v[1]} for k, v in id2doc.items()}
     # title2text = {v[0]:v[1] for v in id2doc.values()}
     logger.info(f"Corpus size {len(id2doc)}")
-    
+
 
     logger.info("Encoding questions and searching")
     questions = [_["question"][:-1] if _["question"].endswith("?") else _["question"] for _ in ds_items]
     metrics = []
     retrieval_outputs = []
     for b_start in tqdm(range(0, len(questions), args.batch_size)):
-        with torch.no_grad():
+        with torch.no_grad(), torch.autocast(device_type='cpu', dtype=torch.bfloat16):
             batch_q = questions[b_start:b_start + args.batch_size]
             batch_ann = ds_items[b_start:b_start + args.batch_size]
             bsize = len(batch_q)
@@ -171,7 +169,7 @@ if __name__ == '__main__':
             q_sp_embeds = model.encode_q(batch_q_sp_encodes["input_ids"], batch_q_sp_encodes["attention_mask"], batch_q_sp_encodes.get("token_type_ids", None))
             # print("Encoding time:", time.time() - s1)
 
-            
+
             q_sp_embeds = q_sp_embeds.contiguous().cpu().numpy()
             s2 = time.time()
             if args.hnsw:
@@ -204,7 +202,7 @@ if __name__ == '__main__':
                     paths.append([str(hop_1_id), str(hop_2_id)])
                     path_titles.append([id2doc[str(hop_1_id)]["title"], id2doc[str(hop_2_id)]["title"]])
                     hop1_titles.append(id2doc[str(hop_1_id)]["title"])
-                
+
                 if args.only_eval_ans:
                     gold_answers = batch_ann[idx]["answer"]
                     concat_p = "yes no "
@@ -215,7 +213,7 @@ if __name__ == '__main__':
                         "ans_recall": int(para_has_answer(gold_answers, concat_p, simple_tokenizer)),
                         "type": batch_ann[idx].get("type", "single")
                     })
-                    
+
                 else:
                     sp = batch_ann[idx]["sp"]
                     assert len(set(sp)) == 2
@@ -246,7 +244,7 @@ if __name__ == '__main__':
                     candidaite_chains = []
                     for path in paths:
                         candidaite_chains.append([id2doc[path[0]], id2doc[path[1]]])
-                    
+
                     retrieval_outputs.append({
                         "_id": batch_ann[idx]["_id"],
                         "question": batch_ann[idx]["question"],
